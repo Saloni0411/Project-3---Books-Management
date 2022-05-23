@@ -10,10 +10,11 @@ const bookSchema = new mongoose.Schema(
       trim: true
     },
     excerpt: { type: String, required: true, trim: true},
+    bookCoverLink: { type: String, required: true, },
     userId: { type:ObjectId, ref: "User", required: true, trim: true},
     ISBN: { type: String, required: true, unique: true, trim: true},
     category: { type: String, required: true, trim: true},
-    subcategory: { type: [String], required: true },
+    subcategory: { type: String },
     reviews: { type: Number, default: 0},
     deletedAt: { type: Date },
     isDeleted: { type: Boolean, default: false },

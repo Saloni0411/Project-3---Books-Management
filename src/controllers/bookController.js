@@ -2,6 +2,36 @@ const bookModel = require('../models/bookModel')
 const userModel = require('../models/userModel')
 const mongoose = require("mongoose")
 const reviewModel = require('../models/reviewModel')
+const aws= require("aws-sdk")
+
+aws.config.update({
+    accessKeyId: "AKIAY3L35MCRUJ6WPO6J",
+    secretAccessKey: "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",
+    region: "ap-south-1"
+})
+
+let uploadFile= async ( file) =>{
+    return new Promise( function(resolve, reject) {
+     // this function will upload file to aws and return the link
+     let s3= new aws.S3({apiVersion: '2006-03-01'}); // we will be using the s3 service of aws
+ 
+     var uploadParams= {
+         ACL: "public-read",
+         Bucket: "classroom-training-bucket",  //HERE
+         Key: "abc/" + file.originalname, //HERE 
+         Body: file.buffer
+     }
+     s3.upload( uploadParams, function (err, data ){
+        if(err) {
+            return reject({"error": err})
+        }
+        console.log(data)
+        console.log("file uploaded succesfully")
+        return resolve(data.Location)
+    })
+
+   })
+}
 
 
 
@@ -18,7 +48,8 @@ const createBooks = async function (req, res) {
         let data = req.body;
         
         // destructure
-        let { title, excerpt, userId, ISBN, category, subcategory, releasedAt } = data;
+        let { title, excerpt, userId, ISBN, category, subcategory, releasedAt} = data;
+
 
         if (!Object.keys(data).length) return res.status(400).send({ status: false, message: "you must enter data for creating books" })
 
@@ -66,18 +97,34 @@ const createBooks = async function (req, res) {
         if (!releasedAt) return res.status(400).send({ status: false, message: "releasedAt must be present" });
         if (!releasedAt.trim().match(dateRegex)) return res.status(400).send({ status: false, message: "please enter valid date" })
 
+        //if (!bookCoverLink) return res.status(400).send({ status: false, message: "book cover link must be present" });
         // **********************************************Authorization Check**************************************/
         if (req.headers['User-login'] !== data.userId)
             return res.status(400).send({ status: false, message: "you don't have authorised to create books of other's account" })
         /***********************************************************************************************************/
         //Creating books
-        let newBook = await bookModel.create(data);
+/*         let newBook = await bookModel.create(data);
         res.status(201).send({ status: true, message: 'Success', data: newBook })
+ */
 
+        let files= req.files
+        if(files && files.length>0){
+            //upload to s3 and get the uploaded link
+            // res.send the link back to frontend/postman
+            let uploadedFileURL= await uploadFile( files[0] )
+            data.bookCoverLink = uploadedFileURL
+            let newBook = await bookModel.create(data)
+            res.status(201).send({msg: "file uploaded succesfully", data: newBook})
+        }
+        else{
+            res.status(400).send({ msg: "No file found" })
+        }
+        
     }
-    catch (error) {
-        res.status(500).send({ status: false, message: error.message })
+    catch(err){
+        res.status(500).send({msg: err})
     }
+
 }
 
 ///////////////////////// -GET BOOK- ///////////////////////////////
